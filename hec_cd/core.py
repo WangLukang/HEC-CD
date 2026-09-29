@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.ndimage import binary_opening
+from scipy.ndimage import binary_opening, label
 
 from .ght import regularized_spec
 
@@ -54,9 +54,13 @@ def select_unlabeled_histogram(histogram: np.ndarray) -> ThresholdResult:
 
 
 def postprocess(score: np.ndarray, threshold: int) -> np.ndarray:
-    """Apply inclusive cutoff followed by one 3x3 cross opening."""
+    """Apply cutoff and cross opening, then retain four-connected areas >=192."""
     cross = np.array([[False, True, False], [True, True, True], [False, True, False]])
-    return binary_opening(quantize(score) >= threshold, structure=cross, iterations=1)
+    opened = binary_opening(quantize(score) >= threshold, structure=cross, iterations=1)
+    components, _ = label(opened, structure=cross)
+    keep = np.bincount(components.ravel()) >= 192
+    keep[0] = False
+    return keep[components]
 
 
 def metrics_from_counts(tp: int, fp: int, fn: int, tn: int) -> dict[str, float]:

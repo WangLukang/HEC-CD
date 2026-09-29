@@ -70,6 +70,26 @@ class CliTests(unittest.TestCase):
             self.assertIn('empty', result.stderr)
             self.assertEqual(sentinel.read_text(), 'retain')
 
+    def test_calibration_applies_component_filter_to_saved_masks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            scores = root/'scores'
+            scores.mkdir()
+            image = np.zeros((40, 40), dtype=np.uint8)
+            image[2:16, 2:16] = 128
+            image[20:33, 20:35] = 128
+            Image.fromarray(image).save(scores/'one.png')
+            output = root/'decoded'
+            result = self.command('calibrate', '--scores', scores, '--output', output)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calibration = json.loads((output/'calibration.json').read_text())
+            self.assertEqual(calibration['selected_u8'], 128)
+            self.assertEqual(calibration['nonzero_count'], 391)
+            mask = np.asarray(Image.open(output/'predictions/one.png'))
+            self.assertEqual(np.count_nonzero(mask), 192)
+            self.assertEqual(mask[8, 8], 255)
+            self.assertEqual(mask[25, 25], 0)
+
     def test_empty_score_collection_is_an_error(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

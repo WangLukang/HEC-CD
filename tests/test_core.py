@@ -65,24 +65,34 @@ class CoreTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     core.select_unlabeled_histogram(histogram)
 
-    def test_cross_opening_preserves_small_components_at_inclusive_cutoff(self):
-        score = np.zeros((8, 8), np.uint8)
-        score[2, 1:4] = score[1:4, 2] = 128
-        score[4, 3:6] = score[3:6, 4] = 128
+    def test_cross_opening_uses_inclusive_cutoff(self):
+        score = np.zeros((24, 24), np.uint8)
+        score[2:16, 2:16] = 128
         expected = score > 0
-        score[6, 6] = 128  # An isolated pixel does not survive the cross opening.
+        for row, col in ((2, 2), (2, 15), (15, 2), (15, 15)):
+            expected[row, col] = False
+        score[20, 20] = 128  # An isolated pixel does not survive the cross opening.
         actual = core.postprocess(score, 128)
         np.testing.assert_array_equal(actual, expected)
         self.assertFalse(core.postprocess(score, 129).any())
 
-    def test_postprocess_keeps_components_below_former_area_cutoff(self):
+    def test_postprocess_filters_by_area_after_opening(self):
         score = np.zeros((40, 40), np.uint8)
         score[2:16, 2:16] = 255  # 196 pixels minus four corners = 192.
         score[20:33, 20:35] = 255  # 195 pixels minus four corners = 191.
         prediction = core.postprocess(score, 128)
-        self.assertEqual(int(prediction.sum()), 383)
+        self.assertEqual(int(prediction.sum()), 192)
         self.assertTrue(prediction[8, 8])
-        self.assertTrue(prediction[25, 25])
+        self.assertFalse(prediction[25, 25])
+        self.assertEqual(prediction.dtype, np.bool_)
+
+    def test_postprocess_does_not_merge_diagonally_touching_regions(self):
+        rows, cols = np.indices((40, 40))
+        # Each diamond has 181 pixels and survives the cross opening unchanged.
+        first = np.abs(rows - 12) + np.abs(cols - 12) <= 9
+        second = np.abs(rows - 22) + np.abs(cols - 22) <= 9
+        score = ((first | second) * 255).astype(np.uint8)
+        self.assertFalse(core.postprocess(score, 128).any())
 
     def test_metrics_use_global_counts(self):
         actual = core.metrics_from_counts(80, 20, 40, 860)

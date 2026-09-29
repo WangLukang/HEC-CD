@@ -95,7 +95,8 @@ shared candidate masks; `core.py` handles fusion and decoding; `ght.py` implemen
 threshold calibration. The release preserves the original intermediate quantization:
 Satlas residual truncation, SAM response rounding and half-precision presence,
 then round-to-nearest consensus scores. Spatial decoding applies the inclusive
-calibrated cutoff followed by one 3 x 3 cross opening.
+calibrated cutoff followed by one 3 x 3 cross opening, then retains four-connected
+components with at least 192 pixels in each tile.
 SAM 3 processes each date separately with text encoding inside BF16 autocast;
 DINOv3 processes the two dates together in FP16. Mixed-precision results may
 vary slightly with hardware, software versions, and batch size.
