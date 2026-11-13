@@ -70,7 +70,8 @@ Outputs are 8-bit consensus maps in `scores/`, binary maps in `predictions/`,
 and the threshold/histogram in `calibration.json`.
 GHT uses the collection's nonzero scores with `rho=10`.
 Inference and calibration use images only; the output folder must be new or empty.
-Three real [output examples](examples/README.md) are included.
+A worked [output example](examples/README.md) shows both evidence pathways,
+fusion and the final prediction.
 
 To decode an existing collection of 8-bit grayscale consensus maps:
 

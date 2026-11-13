@@ -18,3 +18,4 @@ outputs/
 *.docx
 *.pdf
 *.log
+!examples/whu/evidence_float32.npz

@@ -1,0 +1,24 @@
+{
+  "dataset": "WHU-CD",
+  "sample_id": "whucd_00230",
+  "evaluation": "single selected test patch",
+  "counts": {
+    "tp": 11430,
+    "fp": 2,
+    "fn": 149,
+    "tn": 53955
+  },
+  "metrics_percent": {
+    "precision": 99.98250524842547,
+    "recall": 98.71318766732878,
+    "f1": 99.3437920994307,
+    "iou": 98.69614022968656,
+    "oa": 99.76959228515625
+  },
+  "full_collection_size": 744,
+  "inclusive_threshold_u8": 74,
+  "original_shape": [
+    256,
+    256
+  ]
+}
