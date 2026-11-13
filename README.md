@@ -31,8 +31,7 @@ git -C external/SegEarth-OV-3 checkout 87e5cc18c8bc9c0b4713b975587281ac1c97c79a
 ```
 
 The SAM 3 adapter uses the semantic-response and presence outputs from this
-SegEarth-OV-3 revision. Do not substitute another SAM 3 processor without checking
-that interface. The repository does not need the mmsegmentation evaluation pipeline.
+SegEarth-OV-3 revision.
 
 Download the following weights separately, accepting each provider's access terms:
 
@@ -42,38 +41,41 @@ Download the following weights separately, accepting each provider's access term
 | SAM 3 | [Meta](https://huggingface.co/facebook/sam3) | `checkpoints/sam3.pt` |
 | DINOv3 ViT-L SAT-493M | [timm](https://huggingface.co/timm/vit_large_patch16_dinov3.sat493m) | `checkpoints/dinov3_vitl.safetensors` |
 
-The DINOv3 file is the provider's `model.safetensors`, renamed locally. Data,
-checkpoints, and third-party source trees are not included.
+The DINOv3 file is the provider's `model.safetensors`, renamed locally.
+
+## Data
+
+LEVIR-CD and S2Looking follow their original splits. WHU-CD uses the 744-pair
+test setting consistent with [DynamicEarth](https://arxiv.org/abs/2501.12931).
+HEC-CD processes non-overlapping 256 x 256 RGB tiles: 2,048 / 744 / 16,000
+test pairs for LEVIR-CD / WHU-CD / S2Looking.
+
+See [Data preparation](docs/data.md) for downloads, preprocessing scripts,
+labels, directories and locally generated manifests.
 
 ## Run
 
-Prepare registered **256 x 256 RGB tiles** and a CSV containing one complete target
-collection. Paths are relative to the CSV file (absolute paths also work):
-
-```csv
-id,t1,t2
-scene_001,A/scene_001.png,B/scene_001.png
-scene_002,A/scene_002.png,B/scene_002.png
-```
+After data preparation, run each dataset separately. CSV paths are relative to
+the CSV file. For example, on LEVIR-CD:
 
 ```bash
-python -m hec_cd predict --manifest data/pairs.csv --output outputs/run1 \
+python -m hec_cd predict --manifest data/LEVIR-CD256/manifests/test_pairs.csv --output outputs/levir \
   --satlas-root external/satlas \
   --satlas-checkpoint checkpoints/aerial_swinb_si.pth \
   --sam3-root external/SegEarth-OV-3 --sam3-checkpoint checkpoints/sam3.pt \
   --dinov3-checkpoint checkpoints/dinov3_vitl.safetensors
 ```
 
-Outputs are quantized consensus maps in `scores/`, binary maps in `predictions/`,
-and the frozen threshold/histogram in `calibration.json`. Run each dataset
-separately. GHT uses all nonzero scores in that collection, with fixed
-`rho=10`; no ground-truth masks are read during inference or calibration.
-The output folder must be new or empty.
+Outputs are 8-bit consensus maps in `scores/`, binary maps in `predictions/`,
+and the threshold/histogram in `calibration.json`.
+GHT uses the collection's nonzero scores with `rho=10`.
+Inference and calibration use images only; the output folder must be new or empty.
+Three real [output examples](examples/README.md) are included.
 
 To decode an existing collection of 8-bit grayscale consensus maps:
 
 ```bash
-python -m hec_cd calibrate --scores outputs/run1/scores --output outputs/decoded
+python -m hec_cd calibrate --scores outputs/levir/scores --output outputs/decoded
 ```
 
 ## Evaluate and test
@@ -82,11 +84,12 @@ For evaluation only, provide a separate CSV with columns `id,mask`. Masks must b
 binary grayscale images (0/1 or 0/255), with unchanged pixels coded as zero.
 
 ```bash
-python -m hec_cd evaluate --predictions outputs/run1/predictions --manifest data/labels.csv
+python -m hec_cd evaluate --predictions outputs/levir/predictions --manifest data/LEVIR-CD256/manifests/test_labels.csv
 python -m unittest discover -s tests -v
 ```
 
 Evaluation reports global pixel counts and P/R/F1/IoU/OA as fractions in `[0,1]`.
+See [Baseline sources and settings](docs/baselines.md) for the comparison methods.
 
 ## Implementation
 
@@ -97,9 +100,7 @@ Satlas residual truncation, SAM response rounding and half-precision presence,
 then round-to-nearest consensus scores. Spatial decoding applies the inclusive
 calibrated cutoff followed by one 3 x 3 cross opening, then retains four-connected
 components with at least 192 pixels in each tile.
-SAM 3 processes each date separately with text encoding inside BF16 autocast;
-DINOv3 processes the two dates together in FP16. Mixed-precision results may
-vary slightly with hardware, software versions, and batch size.
+SAM 3 processes each date separately in BF16; DINOv3 processes both dates in FP16.
 
 ## License
 
